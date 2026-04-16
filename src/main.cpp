@@ -164,9 +164,10 @@ void setup() {
   display.println("INICIANDO FS...");
   display.display();
 
+  WiFi.mode(WIFI_STA);
   WiFi.begin("CCLRZ", "Certing_123");
   int counter = 0;
-  while (WiFi.status() != WL_CONNECTED && counter < 20) {
+  while (WiFi.status() != WL_CONNECTED && counter < 40) {
     delay(500);
     display.print(".");
     display.display();
@@ -176,7 +177,15 @@ void setup() {
   if (WiFi.status() == WL_CONNECTED) {
     display.clearDisplay();
     display.setCursor(0, 0);
+    display.println("WiFi: OK");
     display.println("IP: " + WiFi.localIP().toString());
+    display.display();
+    Serial.println("IP: " + WiFi.localIP().toString());
+  } else {
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.println("WiFi: Aguardando...");
+    display.println("SSID: CCLRZ");
     display.display();
   }
 
@@ -186,6 +195,31 @@ void setup() {
 
 void loop() {
   server.handleClient();
+
+  // WiFi Watchdog: reconecta à CCLRZ automaticamente se cair
+  static uint32_t lastWiFiCheck = 0;
+  if (millis() - lastWiFiCheck > 30000) {
+    lastWiFiCheck = millis();
+    if (WiFi.status() != WL_CONNECTED) {
+      Serial.println("WiFi caiu! Reconectando CCLRZ...");
+      display.fillRect(0, 16, 128, 16, BLACK);
+      display.setCursor(0, 16);
+      display.println("WiFi: Reconectando");
+      display.display();
+      WiFi.disconnect();
+      WiFi.begin("CCLRZ", "Certing_123");
+      for (int i = 0; i < 20 && WiFi.status() != WL_CONNECTED; i++) {
+        delay(500);
+      }
+      if (WiFi.status() == WL_CONNECTED) {
+        display.fillRect(0, 16, 128, 16, BLACK);
+        display.setCursor(0, 16);
+        display.println("IP: " + WiFi.localIP().toString());
+        display.display();
+        Serial.println("Reconectado! IP: " + WiFi.localIP().toString());
+      }
+    }
+  }
 
   static uint32_t lastRead = 0;
   if (millis() - lastRead > 300000 || lastRead == 0) {
